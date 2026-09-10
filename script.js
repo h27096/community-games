@@ -11,7 +11,25 @@ const COOLDOWN_MS = 60 * 1000;
 const FALLBACK_EMOJIS = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳"];
 
 const hasSupabaseConfig = !SUPABASE_URL.includes("YOUR_SUPABASE") && !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE");
-const supabase = hasSupabaseConfig ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+// The username screen is local UI and must not depend on a third-party script
+// loading successfully. If the CDN is unavailable, keep the app usable and
+// explain the connection state instead of stopping before start() can run.
+function createSupabaseClient() {
+  if (!hasSupabaseConfig) return null;
+  if (!window.supabase?.createClient) {
+    console.warn("The Supabase browser client did not load.");
+    return null;
+  }
+  try {
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (error) {
+    console.error("Unable to create the Supabase client.", error);
+    return null;
+  }
+}
+
+const supabase = createSupabaseClient();
 
 const state = {
   username: localStorage.getItem("communityGamesUsername") || "",
@@ -82,20 +100,23 @@ function messageMarkup(message, extra = "") {
 
 async function loadState() {
   if (!supabase) {
-    setStatus("Demo mode — connect Supabase to share data", false);
+    setStatus(hasSupabaseConfig ? "Community connection unavailable — retry shortly" : "Demo mode — connect Supabase to share data", false);
     $("welcomeText").textContent = `You're signed in as ${state.username || "a guest"}. Community data will be shared after Supabase is configured.`;
     renderChallengeStats();
+    renderMessages([]);
     return;
   }
 
-  const [{ data: challenge }, { data: messages, error: messageError }] = await Promise.all([
+  const [{ data: challenge, error: stateError }, { data: messages, error: messageError }] = await Promise.all([
     supabase.from("challenge_state").select("*").eq("id", 1).maybeSingle(),
     supabase.from("challenge_messages").select("*").order("created_at", { ascending: false }).limit(60)
   ]);
 
-  if (messageError) {
-    setStatus("Supabase connected, database setup needed", false);
-    console.error(messageError);
+  if (stateError || messageError) {
+    setStatus("Community connection needs attention", false);
+    console.error(stateError || messageError);
+    renderChallengeStats();
+    renderMessages([]);
     return;
   }
 
@@ -259,7 +280,16 @@ $("emojiForm").addEventListener("submit", async (event) => {
 async function start() {
   if (!state.username) showUsernameModal();
   else $("welcomeText").textContent = `You're playing as ${state.username}.`;
-  await loadState();
+
+  try {
+    await loadState();
+  } catch (error) {
+    // Never let a failed network request prevent the local username flow.
+    console.error("Unable to load the community state.", error);
+    setStatus("Community connection unavailable — retry shortly", false);
+    renderChallengeStats();
+    renderMessages([]);
+  }
 
   if (supabase) {
     supabase.channel("community-games-live")
