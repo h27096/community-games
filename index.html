@@ -1,1 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Games</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">COMMUNITY GAMES</p>
+      <h1>Play together. Keep the count going.</h1>
+    </div>
+    <button id="changeUsername" class="secondary-button" type="button">Change username</button>
+  </header>
 
+  <main>
+    <section class="hero-card">
+      <div>
+        <span class="status-dot"></span>
+        <span id="connectionStatus">Connecting to community...</span>
+      </div>
+      <p id="welcomeText">Choose a username to join the community.</p>
+    </section>
+
+    <section class="game-grid">
+      <article class="game-card" id="beansCard">
+        <div class="card-heading"><span class="game-icon">🫘</span><div><h2>Beans</h2><p>Send as many beans as you want in one message.</p></div></div>
+        <div class="stat"><strong id="beansTotal">0</strong><span id="beansGoalLabel">/ 20,000 beans</span></div>
+        <div class="progress"><div id="beansProgress" class="progress-bar"></div></div>
+        <p id="beansProgressText" class="muted">0% of the community goal</p>
+        <form id="beansForm" class="message-form">
+          <input id="beansInput" maxlength="500" autocomplete="off" placeholder="🫘🫘🫘 send a batch of beans" aria-label="Beans message">
+          <button type="submit">Send beans</button>
+        </form>
+        <p class="hint">Every 🫘 in your message counts. Other text is allowed.</p>
+        <div id="beansFeed" class="feed"></div>
+      </article>
+
+      <article class="game-card" id="countingCard">
+        <div class="card-heading"><span class="game-icon">🔢</span><div><h2>Community Counting</h2><p>Take the next number. One successful count every 60 seconds per person.</p></div></div>
+        <div class="stat"><strong id="countingNumber">0</strong><span>current number</span></div>
+        <div class="next-number">Next: <b id="nextNumber">1</b></div>
+        <form id="countingForm" class="message-form">
+          <input id="countingInput" inputmode="numeric" autocomplete="off" placeholder="Enter the next number" aria-label="Next counting number">
+          <button type="submit">Count</button>
+        </form>
+        <p id="countingCooldown" class="hint">You can submit when it is your turn.</p>
+        <div id="countingFeed" class="feed"></div>
+      </article>
+
+      <article class="game-card" id="emojiCard">
+        <div class="card-heading"><span class="game-icon">😀</span><div><h2>Apple Emoji Challenge</h2><p>Work through the shared emoji sequence together.</p></div></div>
+        <div class="stat"><strong id="emojiProgressNumber">0</strong><span id="emojiTotalLabel">emojis completed</span></div>
+        <div class="emoji-next" id="emojiNext">😀</div>
+        <p id="emojiName" class="muted">Next emoji</p>
+        <form id="emojiForm" class="message-form">
+          <input id="emojiInput" maxlength="20" autocomplete="off" placeholder="Send the next emoji" aria-label="Next emoji">
+          <button type="submit">Submit</button>
+        </form>
+        <p id="emojiCooldown" class="hint">One successful emoji every 60 seconds per person.</p>
+        <div id="emojiFeed" class="feed"></div>
+      </article>
+    </section>
+  </main>
+
+  <div id="usernameModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="usernameTitle">
+    <div class="modal">
+      <span class="game-icon">👤</span>
+      <h2 id="usernameTitle">Welcome!</h2>
+      <p>Pick a username. It will be saved in this browser and shown with your community messages.</p>
+      <form id="usernameForm">
+        <input id="usernameInput" maxlength="24" required autocomplete="nickname" placeholder="Your username">
+        <button type="submit">Join community</button>
+      </form>
+      <p id="usernameError" class="error"></p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
