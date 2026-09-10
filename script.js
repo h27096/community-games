@@ -29,7 +29,8 @@ function createSupabaseClient() {
   }
 }
 
-const supabase = createSupabaseClient();
+// Do not call this `supabase`: the CDN bundle declares that global name.
+const supabaseClient = createSupabaseClient();
 
 const state = {
   username: localStorage.getItem("communityGamesUsername") || "",
@@ -99,7 +100,7 @@ function messageMarkup(message, extra = "") {
 }
 
 async function loadState() {
-  if (!supabase) {
+  if (!supabaseClient) {
     setStatus(hasSupabaseConfig ? "Community connection unavailable — retry shortly" : "Demo mode — connect Supabase to share data", false);
     $("welcomeText").textContent = `You're signed in as ${state.username || "a guest"}. Community data will be shared after Supabase is configured.`;
     renderChallengeStats();
@@ -108,8 +109,8 @@ async function loadState() {
   }
 
   const [{ data: challenge, error: stateError }, { data: messages, error: messageError }] = await Promise.all([
-    supabase.from("challenge_state").select("*").eq("id", 1).maybeSingle(),
-    supabase.from("challenge_messages").select("*").order("created_at", { ascending: false }).limit(60)
+    supabaseClient.from("challenge_state").select("*").eq("id", 1).maybeSingle(),
+    supabaseClient.from("challenge_messages").select("*").order("created_at", { ascending: false }).limit(60)
   ]);
 
   if (stateError || messageError) {
@@ -138,26 +139,26 @@ function renderMessages(messages) {
 }
 
 async function getCooldown(challenge) {
-  if (!supabase || !state.username) return 0;
-  const { data, error } = await supabase.from("challenge_cooldowns").select("next_allowed_at").eq("username", state.username).eq("challenge", challenge).maybeSingle();
+  if (!supabaseClient || !state.username) return 0;
+  const { data, error } = await supabaseClient.from("challenge_cooldowns").select("next_allowed_at").eq("username", state.username).eq("challenge", challenge).maybeSingle();
   if (error || !data) return 0;
   return Math.max(0, new Date(data.next_allowed_at).getTime() - Date.now());
 }
 
 async function setCooldown(challenge) {
-  if (!supabase || !state.username) return;
+  if (!supabaseClient || !state.username) return;
   const next = new Date(Date.now() + COOLDOWN_MS).toISOString();
-  await supabase.from("challenge_cooldowns").upsert({ username: state.username, challenge, next_allowed_at: next }, { onConflict: "username,challenge" });
+  await supabaseClient.from("challenge_cooldowns").upsert({ username: state.username, challenge, next_allowed_at: next }, { onConflict: "username,challenge" });
 }
 
 async function addMessage(message) {
-  const { error } = await supabase.from("challenge_messages").insert(message);
+  const { error } = await supabaseClient.from("challenge_messages").insert(message);
   if (error) throw error;
 }
 
 async function refreshState() {
-  if (!supabase) return;
-  const { data } = await supabase.from("challenge_state").select("*").eq("id", 1).maybeSingle();
+  if (!supabaseClient) return;
+  const { data } = await supabaseClient.from("challenge_state").select("*").eq("id", 1).maybeSingle();
   if (data) {
     state.beansTotal = data.beans_total ?? state.beansTotal;
     state.countingNumber = data.counting_number ?? state.countingNumber;
@@ -170,7 +171,7 @@ async function refreshState() {
 async function addBeans(content) {
   const amount = [...content].filter(char => char === "🫘").length;
   if (!amount) throw new Error("Your message needs at least one 🫘.");
-  if (!supabase) {
+  if (!supabaseClient) {
     state.beansTotal += amount;
     renderChallengeStats();
     return;
@@ -178,7 +179,7 @@ async function addBeans(content) {
 
   // The production-safe version should perform this increment in a Postgres RPC
   // transaction so simultaneous messages cannot overwrite each other.
-  const { error } = await supabase.rpc("add_beans", { bean_amount: amount, sender_username: state.username, message_content: content });
+  const { error } = await supabaseClient.rpc("add_beans", { bean_amount: amount, sender_username: state.username, message_content: content });
   if (error) throw error;
   await refreshState();
 }
@@ -190,13 +191,13 @@ async function submitCount(value) {
 
   await refreshState();
   if (value !== state.countingNumber + 1) throw new Error(`Wrong number. The community needs ${state.countingNumber + 1}.`);
-  if (!supabase) {
+  if (!supabaseClient) {
     state.countingNumber = value;
     renderChallengeStats();
     state.cooldowns.counting = Date.now() + COOLDOWN_MS;
     return;
   }
-  const { error } = await supabase.rpc("submit_count", { submitted_number: value, sender_username: state.username });
+  const { error } = await supabaseClient.rpc("submit_count", { submitted_number: value, sender_username: state.username });
   if (error) throw error;
   await setCooldown("counting");
   await refreshState();
@@ -219,13 +220,13 @@ async function submitEmoji(value) {
   await refreshState();
   const expected = state.emojiSequence[state.emojiIndex];
   if (emoji !== expected) throw new Error(`Not the next emoji. The community needs ${expected}.`);
-  if (!supabase) {
+  if (!supabaseClient) {
     state.emojiIndex += 1;
     renderChallengeStats();
     state.cooldowns.emoji = Date.now() + COOLDOWN_MS;
     return;
   }
-  const { error } = await supabase.rpc("submit_emoji", { submitted_emoji: emoji, sender_username: state.username });
+  const { error } = await supabaseClient.rpc("submit_emoji", { submitted_emoji: emoji, sender_username: state.username });
   if (error) throw error;
   await setCooldown("emoji");
   await refreshState();
@@ -291,8 +292,8 @@ async function start() {
     renderMessages([]);
   }
 
-  if (supabase) {
-    supabase.channel("community-games-live")
+  if (supabaseClient) {
+    supabaseClient.channel("community-games-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "challenge_messages" }, () => loadState())
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "challenge_state" }, () => loadState())
       .subscribe();
