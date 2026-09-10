@@ -1,7 +1,7 @@
 // Community Games
 // Shared community data is designed for Supabase. Add your project's URL/key below.
 
-const SUPABASE_URL = "https://cougubqofgoygufuoxyx.supabase.co/rest/v1/";
+const SUPABASE_URL = "https://cougubqofgoygufuoxyx.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Sq_pH4Lt8-LHL1yAC0wCXA_FPJAzg1x";
 const BEANS_GOAL = 20000;
 const COOLDOWN_MS = 60 * 1000;
